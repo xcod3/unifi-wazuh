@@ -1,0 +1,52 @@
+<!--
+  UniFi (UCG / UDM / UXG) rules for Wazuh
+  Requires: decoders/unifi_decoders.xml
+
+  Install: copy to /var/ossec/etc/rules/unifi_rules.xml
+           chown wazuh:wazuh, chmod 660, restart wazuh-manager
+
+  Rule IDs 100200-100204. Change them if they clash with your own custom rules
+  (Wazuh reserves 100000-120000 for user rules).
+-->
+
+<group name="unifi,">
+
+  <!-- Any UniFi CEF event -->
+  <rule id="100200" level="3">
+    <decoded_as>unifi-cef</decoded_as>
+    <description>UniFi: $(unifi.name)</description>
+  </rule>
+
+  <!-- IDS/IPS detections: event 200 = detected (IDS mode), 201 = detected and blocked (IPS mode) -->
+  <rule id="100201" level="10">
+    <if_sid>100200</if_sid>
+    <field name="unifi.event_id" type="pcre2">^20[01]$</field>
+    <description>UniFi IDS/IPS: $(unifi.signature) - $(unifi.msg) [$(unifi.action)]</description>
+    <group>ids,</group>
+  </rule>
+
+  <!-- Firewall events -->
+  <rule id="100202" level="5">
+    <if_sid>100200</if_sid>
+    <field name="unifi.category">Firewall</field>
+    <description>UniFi firewall: $(unifi.name) ($(srcip) -> $(dstip):$(dstport))</description>
+    <group>firewall,</group>
+  </rule>
+
+  <!-- Wi-Fi client connected / disconnected -->
+  <rule id="100203" level="3">
+    <if_sid>100200</if_sid>
+    <field name="unifi.category">Client Devices</field>
+    <description>UniFi Wi-Fi: $(unifi.name) - $(unifi.client_hostname) ($(unifi.client_ip)) on $(unifi.ssid)</description>
+    <group>wifi,</group>
+  </rule>
+
+  <!-- High-risk IDS/IPS detections -->
+  <rule id="100204" level="12">
+    <if_sid>100201</if_sid>
+    <field name="unifi.risk">high</field>
+    <description>UniFi IDS/IPS HIGH RISK: $(unifi.signature) - $(unifi.msg) [$(unifi.action)]</description>
+    <group>ids,</group>
+  </rule>
+
+</group>

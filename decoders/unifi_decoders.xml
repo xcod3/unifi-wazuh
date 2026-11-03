@@ -1,0 +1,151 @@
+<!--
+  UniFi (UCG / UDM / UXG) CEF decoders for Wazuh
+  https://github.com/<your-user>/unifi-wazuh-integration
+
+  Install: copy to /var/ossec/etc/decoders/unifi_decoders.xml
+           chown wazuh:wazuh, chmod 660, restart wazuh-manager
+
+  Tested with: Wazuh 4.14.9, UniFi Network 10.6.109, UCG Fiber (UniFi OS 5.1.34)
+
+  How it works: UniFi sends lines like
+    Nov 03 12:31:10 UCG-Fiber CEF:0|Ubiquiti|UniFi Network|10.6.109|200|Threat Detected|9|UNIFIcategory=Security ...
+  Wazuh's pre-decoder strips the syslog header and sets program_name to "CEF",
+  so the parent decoder matches on program_name and the remaining text "0|Ubiquiti|...".
+-->
+
+<decoder name="unifi-cef">
+  <program_name>CEF</program_name>
+  <prematch>^0\|Ubiquiti\|</prematch>
+</decoder>
+
+<!-- CEF header: 0|Vendor|Product|Version|EventID|Name|Severity| -->
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">0\|Ubiquiti\|[^|]*\|[^|]*\|([^|]*)\|([^|]*)\|(\d+)\|</regex>
+  <order>unifi.event_id, unifi.name, unifi.severity</order>
+</decoder>
+
+<!-- Network fields (not every event has them; unknown clients use src=, known clients use UNIFIsrcClient*) -->
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">\bsrc=(\S+)</regex>
+  <order>srcip</order>
+</decoder>
+
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">\bspt=(\d+)</regex>
+  <order>srcport</order>
+</decoder>
+
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">\bdst=(\S+)</regex>
+  <order>dstip</order>
+</decoder>
+
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">\bdpt=(\d+)</regex>
+  <order>dstport</order>
+</decoder>
+
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">\bact=(\S+)</regex>
+  <order>unifi.action</order>
+</decoder>
+
+<!-- Classification -->
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">UNIFIcategory=(.+?)(?=\s\w+=|$)</regex>
+  <order>unifi.category</order>
+</decoder>
+
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">UNIFIsubCategory=(.+?)(?=\s\w+=|$)</regex>
+  <order>unifi.subcategory</order>
+</decoder>
+
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">UNIFIpolicyType=(.+?)(?=\s\w+=|$)</regex>
+  <order>unifi.policy_type</order>
+</decoder>
+
+<!-- IDS/IPS details -->
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">UNIFIrisk=(\S+)</regex>
+  <order>unifi.risk</order>
+</decoder>
+
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">UNIFIipsSignature=(.+?)(?=\s\w+=|$)</regex>
+  <order>unifi.signature</order>
+</decoder>
+
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">UNIFIipsSignatureId=(\d+)</regex>
+  <order>unifi.signature_id</order>
+</decoder>
+
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">UNIFIdstDomain=(\S+)</regex>
+  <order>unifi.dst_domain</order>
+</decoder>
+
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">UNIFIsrcClientHostname=(.+?)(?=\s\w+=|$)</regex>
+  <order>unifi.src_hostname</order>
+</decoder>
+
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">UNIFIsrcClientAlias=(.+?)(?=\s\w+=|$)</regex>
+  <order>unifi.src_alias</order>
+</decoder>
+
+<!-- Wi-Fi / client events -->
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">UNIFIclientHostname=(.+?)(?=\s\w+=|$)</regex>
+  <order>unifi.client_hostname</order>
+</decoder>
+
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">UNIFIclientIp=(\S+)</regex>
+  <order>unifi.client_ip</order>
+</decoder>
+
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">UNIFIclientMac=(\S+)</regex>
+  <order>unifi.client_mac</order>
+</decoder>
+
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">UNIFIwifiName=(.+?)(?=\s\w+=|$)</regex>
+  <order>unifi.ssid</order>
+</decoder>
+
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">UNIFInetworkName=(.+?)(?=\s\w+=|$)</regex>
+  <order>unifi.network</order>
+</decoder>
+
+<!-- Human-readable message (always last in the line) -->
+<decoder name="unifi-cef-fields">
+  <parent>unifi-cef</parent>
+  <regex type="pcre2">\bmsg=(.+)$</regex>
+  <order>unifi.msg</order>
+</decoder>
